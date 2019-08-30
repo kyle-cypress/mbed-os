@@ -288,8 +288,8 @@ private:
     int _sfdp_parse_sector_map_table(uint32_t sector_map_table_addr, size_t sector_map_table_size);
 
     // Detect fastest read Bus mode supported by device
-    int _sfdp_detect_best_bus_read_mode(uint8_t *basic_param_table_ptr, int basic_param_table_size, bool &set_quad_enable,
-                                        bool &is_qpi_mode, mbed::qspi_inst_t &read_inst);
+    int _sfdp_detect_best_bus_read_mode(uint8_t *basic_param_table_ptr, int basic_param_table_size,
+                                        bool &set_quad_enable, bool &is_qpi_mode);
 
     // Enable Quad mode if supported (1-1-4, 1-4-4, 4-4-4 bus modes)
     int _sfdp_set_quad_enabled(uint8_t *basic_param_table_ptr);
@@ -343,7 +343,6 @@ private:
 
     // Command Instructions
     mbed::qspi_inst_t _read_instruction;
-    mbed::qspi_inst_t _prog_instruction;
     mbed::qspi_inst_t _erase_instruction;
     mbed::qspi_inst_t _erase4k_inst;  // Legacy 4K erase instruction (default 0x20h)
     mbed::qspi_inst_t _write_register_inst; // Write status/config register instruction may vary between chips
