@@ -1401,6 +1401,8 @@ qspi_status_t QSPIFBlockDevice::_qspi_send_read_command(qspi_inst_t read_inst, v
                                                         bd_size_t size)
 {
     // Send Read command to device driver
+    tr_debug("Inst: 0x%xh, addr: %llu, size: %llu", read_inst, addr, size);
+
     size_t buf_len = size;
 
     if (_qspi.read(read_inst, (_alt_size == 0) ? -1 : QSPI_ALT_DEFAULT_VALUE, (unsigned int)addr, (char *)buffer, &buf_len) != QSPI_STATUS_OK) {
@@ -1416,6 +1418,7 @@ qspi_status_t QSPIFBlockDevice::_qspi_send_program_command(qspi_inst_t progInst,
                                                            bd_size_t *size)
 {
     // Send Program (write) command to device driver
+    tr_debug("Inst: 0x%xh, addr: %llu, size: %llu", prog_inst, addr, *size);
     qspi_status_t result = QSPI_STATUS_OK;
 
     result = _qspi.write(progInst, -1, addr, (char *)buffer, (size_t *)size);
@@ -1452,6 +1455,8 @@ qspi_status_t QSPIFBlockDevice::_qspi_send_general_command(qspi_inst_t instructi
                                                            const char *tx_buffer,
                                                            mbed::bd_size_t tx_length, const char *rx_buffer, mbed::bd_size_t rx_length)
 {
+    tr_debug("Inst: 0x%xh, addr: %llu, tx length: %llu, rx length: %llu", instruction, addr, tx_length, rx_length);
+
     // Send a general command Instruction to driver
     qspi_status_t status = _qspi.command_transfer(instruction, (int)addr, tx_buffer, tx_length, rx_buffer, rx_length);
 
