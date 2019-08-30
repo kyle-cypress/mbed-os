@@ -100,9 +100,6 @@ enum qspif_default_instructions {
     QSPIF_ULBPR = 0x98, // Clears all write-protection bits in the Block-Protection register
 };
 
-// Local Function
-static int local_math_power(int base, int exp);
-
 /* Init function to initialize Different Devices CS static list */
 static PinName *generate_initialized_active_qspif_csel_arr();
 // Static Members for different devices csel
@@ -895,7 +892,7 @@ int QSPIFBlockDevice::_sfdp_detect_page_size(uint8_t *basic_param_table_ptr, int
     if (basic_param_table_size > QSPIF_BASIC_PARAM_TABLE_PAGE_SIZE_BYTE) {
         // Page Size is specified by 4 Bits (N), calculated by 2^N
         int page_to_power_size = ((int)basic_param_table_ptr[QSPIF_BASIC_PARAM_TABLE_PAGE_SIZE_BYTE]) >> 4;
-        page_size = local_math_power(2, page_to_power_size);
+        page_size = 1 << page_to_power_size;
         tr_debug("Detected Page Size: %d", page_size);
     } else {
         tr_debug("Using Default Page Size: %d", page_size);
@@ -918,8 +915,7 @@ int QSPIFBlockDevice::_sfdp_detect_erase_types_inst_and_size(uint8_t *basic_para
         // Loop Erase Types 1-4
         for (int i_ind = 0; i_ind < 4; i_ind++) {
             erase_type_inst_arr[i_ind] = 0xff; //0xFF default for unsupported type
-            erase_type_size_arr[i_ind] = local_math_power(2,
-                                                          basic_param_table_ptr[QSPIF_BASIC_PARAM_TABLE_ERASE_TYPE_1_SIZE_BYTE + 2 * i_ind]); // Size given as 2^N
+            erase_type_size_arr[i_ind] = 1 << basic_param_table_ptr[QSPIF_BASIC_PARAM_TABLE_ERASE_TYPE_1_SIZE_BYTE + 2 * i_ind]; // Size given as 2^N
             tr_debug("Erase Type(A) %d - Inst: 0x%xh, Size: %d", (i_ind + 1), erase_type_inst_arr[i_ind],
                      erase_type_size_arr[i_ind]);
             if (erase_type_size_arr[i_ind] > 1) {
@@ -1471,18 +1467,4 @@ qspi_status_t QSPIFBlockDevice::_qspi_configure_format(qspi_bus_width_t inst_wid
                                                   dummy_cycles);
 
     return status;
-}
-
-/*********************************************/
-/************** Local Functions **************/
-/*********************************************/
-static int local_math_power(int base, int exp)
-{
-    // Integer X^Y function, used to calculate size fields given in 2^N format
-    int result = 1;
-    while (exp) {
-        result *= base;
-        exp--;
-    }
-    return result;
 }
