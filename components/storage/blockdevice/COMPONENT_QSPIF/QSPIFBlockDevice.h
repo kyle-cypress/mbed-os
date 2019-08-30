@@ -265,7 +265,6 @@ private:
     /*********************************/
     /* Flash Configuration Functions */
     /*********************************/
-
     // Clear the device's block protection
     int _clear_block_protection();
 
@@ -328,7 +327,7 @@ private:
 private:
     enum qspif_clear_protection_method_t {
         QSPIF_BP_ULBPR,    // Issue global protection unlock instruction
-        QSPIF_BP_CLEAR_NONE, // No block protection clear required
+        QSPIF_BP_CLEAR_SR, // Clear protection bits in status register 1
     };
 
     // QSPI Driver Object
@@ -367,6 +366,11 @@ private:
 
     // Clear block protection
     qspif_clear_protection_method_t _clear_protection_method;
+
+    // Quad mode enable status register and bit
+    int _quad_enable_register_idx;
+    int _quad_enable_bit;
+
     // Sector Regions Map
     int _regions_count; //number of regions
     int _region_size_bytes[QSPIF_MAX_REGIONS]; //regions size in bytes
