@@ -1430,7 +1430,7 @@ qspi_status_t QSPIFBlockDevice::_qspi_send_erase_command(qspi_inst_t erase_inst,
     tr_debug("Inst: 0x%xh, addr: %llu, size: %llu", erase_inst, addr, size);
 
     result = _qspi.command_transfer(erase_inst, // command to send
-                                    (((int)addr) & 0x00FFF000), // Align addr to 4096
+                                    (int) addr, // Align addr to 4096
                                     NULL,                 // do not transmit
                                     0,              // do not transmit
                                     NULL,                 // just receive two bytes of data
