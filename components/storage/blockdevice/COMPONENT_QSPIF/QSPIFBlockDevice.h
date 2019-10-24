@@ -362,6 +362,8 @@ private:
     unsigned int _erase_type_size_arr[MAX_NUM_OF_ERASE_TYPES];
 
 
+    bool _needs_fast_mode;
+
     // Clear block protection
     qspif_clear_protection_method_t _clear_protection_method;
     // Sector Regions Map
