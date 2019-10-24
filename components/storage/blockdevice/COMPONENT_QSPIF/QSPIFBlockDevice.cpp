@@ -81,6 +81,9 @@ using namespace mbed;
 
 #define IS_MEM_READY_MAX_RETRIES 10000
 
+// Length of data returned from RDID instruction
+#define QSPI_RDID_DATA_LENGTH 3
+
 enum qspif_default_instructions {
     QSPIF_NOP  = 0x00, // No operation
     QSPIF_PP = 0x02, // Page Program data
@@ -139,14 +142,11 @@ int QSPIFBlockDevice::init()
         return QSPIF_BD_ERROR_DEVICE_MAX_EXCEED;
     }
 
-    uint8_t vendor_device_ids[4];
-    size_t data_length = 3;
     int status = QSPIF_BD_ERROR_OK;
     uint32_t basic_table_addr = 0;
     size_t basic_table_size = 0;
     uint32_t sector_map_table_addr = 0;
     size_t sector_map_table_size = 0;
-    int qspi_status = QSPI_STATUS_OK;
 
     _mutex.lock();
 
@@ -175,6 +175,8 @@ int QSPIFBlockDevice::init()
     _write_register_inst = QSPIF_WRSR;
     _read_register_inst = QSPIF_RDSR;
 
+    _clear_protection_method = QSPIF_BP_CLEAR_NONE;
+
     if (QSPI_STATUS_OK != _qspi_set_frequency(_freq)) {
         tr_error("QSPI Set Frequency Failed");
         status = QSPIF_BD_ERROR_DEVICE_ERROR;
@@ -190,24 +192,10 @@ int QSPIFBlockDevice::init()
         tr_debug("Initialize flash memory OK");
     }
 
-    /* Read Manufacturer ID (1byte), and Device ID (2bytes)*/
-    qspi_status = _qspi_send_general_command(QSPIF_RDID, QSPI_NO_ADDRESS_COMMAND, NULL, 0, (char *)vendor_device_ids,
-                                             data_length);
-    if (qspi_status != QSPI_STATUS_OK) {
-        tr_error("Init - Read Vendor ID Failed");
+    if (0 != _handle_vendor_quirks()) {
+        tr_error("Init - Could not read vendor id");
         status = QSPIF_BD_ERROR_DEVICE_ERROR;
         goto exit_point;
-    }
-
-    tr_debug("Vendor device ID = 0x%x 0x%x 0x%x 0x%x", vendor_device_ids[0],
-             vendor_device_ids[1], vendor_device_ids[2], vendor_device_ids[3]);
-    switch (vendor_device_ids[0]) {
-        case 0xbf:
-            // SST devices come preset with block protection
-            // enabled for some regions, issue global protection unlock to clear
-            _set_write_enable();
-            _qspi_send_general_command(QSPIF_ULBPR, QSPI_NO_ADDRESS_COMMAND, NULL, 0, NULL, 0);
-            break;
     }
 
     //Synchronize Device
@@ -251,6 +239,12 @@ int QSPIFBlockDevice::init()
                                                  0, QSPI_CFG_BUS_SINGLE, 0)) {
         tr_error("_qspi_configure_format failed");
         status = QSPIF_BD_ERROR_DEVICE_ERROR;
+        goto exit_point;
+    }
+
+    if (0 != _clear_block_protection()) {
+        tr_error("Init - clearing block protection failed");
+        status = QSPIF_BD_ERROR_PARSING_FAILED;
         goto exit_point;
     }
 
@@ -1116,6 +1110,64 @@ int QSPIFBlockDevice::_sfdp_parse_sector_map_table(uint32_t sector_map_table_add
     if (i_ind == 4) {
         // No common erase type was found between regions
         _min_common_erase_size = 0;
+    }
+
+    return 0;
+}
+
+int QSPIFBlockDevice::_handle_vendor_quirks()
+{
+    uint8_t vendor_device_ids[QSPI_RDID_DATA_LENGTH] = {0};
+    /* Read Manufacturer ID (1byte), and Device ID (2bytes) */
+    qspi_status_t status = _qspi_send_general_command(QSPIF_RDID, QSPI_NO_ADDRESS_COMMAND,
+                                                      NULL, 0,
+                                                      (char *) vendor_device_ids, QSPI_RDID_DATA_LENGTH);
+    if (QSPI_STATUS_OK != status) {
+        tr_error("Read Vendor ID Failed");
+        return -1;
+    }
+
+    tr_debug("Vendor device ID = 0x%x 0x%x 0x%x", vendor_device_ids[0], vendor_device_ids[1], vendor_device_ids[2]);
+
+    switch (vendor_device_ids[0]) {
+        case 0xbf:
+            // SST devices come preset with block protection
+            // enabled for some regions, issue global protection unlock to clear
+            tr_debug("Applying quirks for SST");
+            _clear_protection_method = QSPIF_BP_ULBPR;
+            break;
+    }
+
+    return 0;
+}
+
+int QSPIFBlockDevice::_clear_block_protection()
+{
+    if (false == _is_mem_ready()) {
+        tr_error("Device not ready, clearing block protection failed");
+        return -1;
+    }
+    qspi_status_t status;
+    switch (_clear_protection_method) {
+        case QSPIF_BP_ULBPR:
+            tr_debug("Clearing block protection via ULBPR");
+            // SST devices come preset with block protection
+            // enabled for some regions, issue global protection unlock to clear
+            if (0 != _set_write_enable()) {
+                tr_error("Write enable failed");
+                return -1;
+            }
+            status = _qspi_send_general_command(QSPIF_ULBPR, QSPI_NO_ADDRESS_COMMAND, NULL, 0, NULL, 0);
+            if (QSPI_STATUS_OK != status) {
+                tr_error("Global block protection unlock failed");
+                return -1;
+            }
+            break;
+    }
+
+    if (false == _is_mem_ready()) {
+        tr_error("Device not ready, clearing block protection failed");
+        return -1;
     }
 
     return 0;

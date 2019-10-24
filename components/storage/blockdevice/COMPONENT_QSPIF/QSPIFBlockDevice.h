@@ -262,6 +262,9 @@ private:
     // Soft Reset Flash Memory
     int _reset_flash_mem();
 
+    // Clear the device's block protection
+    int _clear_block_protection();
+
     // Configure Write Enable in Status Register
     int _set_write_enable();
 
@@ -302,6 +305,9 @@ private:
                                                mbed::qspi_inst_t &erase4k_inst,
                                                mbed::qspi_inst_t *erase_type_inst_arr, unsigned int *erase_type_size_arr);
 
+    // Query vendor ID and handle special behavior that isn't covered by SFDP data
+    int _handle_vendor_quirks();
+
     /***********************/
     /* Utilities Functions */
     /***********************/
@@ -313,6 +319,11 @@ private:
     int _utils_iterate_next_largest_erase_type(uint8_t &bitfield, int size, int offset, int boundry);
 
 private:
+    enum qspif_clear_protection_method_t {
+        QSPIF_BP_ULBPR,    // Issue global protection unlock instruction
+        QSPIF_BP_CLEAR_NONE, // No block protection clear required
+    };
+
     // QSPI Driver Object
     mbed::QSPI _qspi;
 
@@ -342,6 +353,9 @@ private:
     mbed::qspi_inst_t _erase_type_inst_arr[MAX_NUM_OF_ERASE_TYPES];
     unsigned int _erase_type_size_arr[MAX_NUM_OF_ERASE_TYPES];
 
+
+    // Clear block protection
+    qspif_clear_protection_method_t _clear_protection_method;
     // Sector Regions Map
     int _regions_count; //number of regions
     int _region_size_bytes[QSPIF_MAX_REGIONS]; //regions size in bytes
